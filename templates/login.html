@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✈️ 旅遊記帳系統 — 登入</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f1117;
+    color: #e8eaf0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    background: #1e2235;
+    border: 1px solid #2a2d40;
+    border-radius: 24px;
+    padding: 40px 36px;
+    max-width: 420px;
+    width: 100%;
+  }
+  .logo-row {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .logo { font-size: 48px; display: block; margin-bottom: 10px; }
+  h1 { font-size: 22px; font-weight: 700; }
+  h1 span { color: #6c63ff; }
+  .subtitle { font-size: 13px; color: #7b8299; margin-top: 4px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: #161928;
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 28px;
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    border-radius: 9px;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #7b8299;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: #1e2235;
+    color: #e8eaf0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: #7b8299; margin-bottom: 6px; font-weight: 500; }
+  input[type="text"], input[type="email"], input[type="password"] {
+    width: 100%;
+    background: #161928;
+    border: 1px solid #2a2d40;
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #e8eaf0;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: #6c63ff; }
+  .btn-submit {
+    width: 100%;
+    background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-submit:active { transform: translateY(0); }
+
+  /* Error */
+  .error-box {
+    background: rgba(255, 101, 132, 0.12);
+    border: 1px solid rgba(255, 101, 132, 0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #ff6584;
+    margin-bottom: 18px;
+    text-align: center;
+  }
+
+  /* Features */
+  .features {
+    margin-top: 24px;
+    border-top: 1px solid #2a2d40;
+    padding-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #5a6080;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo-row">
+    <span class="logo">✈️</span>
+    <h1>旅遊<span>記帳</span>系統</h1>
+    <p class="subtitle">AI 智能收據辨識・個人專屬帳本</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn" id="tab-login" onclick="switchTab('login')">登入</button>
+    <button class="tab-btn" id="tab-register" onclick="switchTab('register')">建立帳號</button>
+  </div>
+
+  {% if error %}
+  <div class="error-box">{{ error }}</div>
+  {% endif %}
+
+  <!-- 登入 -->
+  <div class="tab-content" id="panel-login">
+    <form method="POST" action="/login">
+      <input type="hidden" name="action" value="login">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="your@email.com"
+               value="{{ email or '' }}" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>密碼</label>
+        <input type="password" name="pin" placeholder="輸入密碼" required autocomplete="current-password">
+      </div>
+      <button class="btn-submit" type="submit">登入</button>
+    </form>
+  </div>
+
+  <!-- 註冊 -->
+  <div class="tab-content" id="panel-register">
+    <form method="POST" action="/login">
+      <input type="hidden" name="action" value="register">
+      <div class="form-group">
+        <label>你的名字</label>
+        <input type="text" name="name" placeholder="例如：小明" value="{{ name or '' }}" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="your@email.com"
+               value="{{ email or '' }}" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>設定密碼（至少 4 位）</label>
+        <input type="password" name="pin" placeholder="設定密碼" required minlength="4" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>確認密碼</label>
+        <input type="password" name="pin2" placeholder="再輸入一次" required autocomplete="new-password">
+      </div>
+      <button class="btn-submit" type="submit">建立帳號並開始記帳</button>
+    </form>
+  </div>
+
+  <div class="features">
+    <div class="feature"><span>📋</span><span>個人專屬 Google Sheets，資料完全隱私</span></div>
+    <div class="feature"><span>📸</span><span>拍照上傳，多國語言收據自動辨識</span></div>
+    <div class="feature"><span>💱</span><span>14 種貨幣自動換算台幣</span></div>
+  </div>
+</div>
+
+<script>
+  const tab = "{{ tab or 'login' }}";
+  function switchTab(t) {
+    document.getElementById('tab-login').classList.toggle('active', t === 'login');
+    document.getElementById('tab-register').classList.toggle('active', t === 'register');
+    document.getElementById('panel-login').classList.toggle('active', t === 'login');
+    document.getElementById('panel-register').classList.toggle('active', t === 'register');
+  }
+  switchTab(tab);
+</script>
+</body>
+</html>

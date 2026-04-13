@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>✈️ 旅遊記帳系統</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --card: #1e2235;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --accent3: #43e97b;
+    --text: #e8eaf0;
+    --muted: #7b8299;
+    --border: #2a2d40;
+    --success: #43e97b;
+    --warning: #f7971e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #1a1d2e 0%, #16192a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .logo span { color: var(--accent); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 16px 12px 80px; }
+
+  /* Stats Bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .stat-value { font-size: 20px; font-weight: 700; }
+  .stat-value.green { color: var(--success); }
+  .stat-value.purple { color: var(--accent); }
+  .stat-value.orange { color: var(--warning); }
+
+  /* Entry Mode Tabs */
+  .entry-tabs {
+    display: flex;
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 4px;
+    margin-bottom: 14px;
+    gap: 4px;
+  }
+  .entry-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .entry-tab.active {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+
+  /* Upload Section */
+  .upload-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .trip-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .trip-row label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .trip-input {
+    flex: 1;
+    min-width: 120px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .trip-input:focus { border-color: var(--accent); }
+  .trip-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    max-width: 140px;
+  }
+
+  /* Drop Zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(108, 99, 255, 0.05);
+  }
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+  .drop-icon { font-size: 40px; margin-bottom: 10px; }
+  .drop-text { color: var(--muted); font-size: 13px; }
+  .drop-text strong { color: var(--accent); }
+
+  /* Manual Form */
+  .manual-form { display: none; }
+  .manual-form.show { display: block; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .form-control {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .form-control:focus { border-color: var(--accent); }
+  .amount-row {
+    display: flex;
+    gap: 8px;
+  }
+  .amount-row .form-control:first-child { flex: 1; }
+  .amount-row select.form-control { width: 90px; flex-shrink: 0; }
+
+  /* Preview */
+  .preview-area {
+    display: none;
+    margin-top: 14px;
+  }
+  .preview-area img {
+    max-height: 200px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: block;
+    margin: 0 auto;
+  }
+  .btn-upload {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 14px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-upload:hover { opacity: 0.9; }
+  .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Result Card */
+  .result-card {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--success);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 14px;
+  }
+  .result-card.show { display: block; }
+  .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .result-store { font-size: 16px; font-weight: 700; }
+  .result-amount { font-size: 26px; font-weight: 700; color: var(--success); margin-bottom: 2px; }
+  .result-twd { font-size: 13px; color: var(--muted); }
+  .result-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag {
+    background: rgba(108, 99, 255, 0.15);
+    border: 1px solid rgba(108, 99, 255, 0.3);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+  .tag.green {
+    background: rgba(67, 233, 123, 0.1);
+    border-color: rgba(67, 233, 123, 0.3);
+    color: var(--success);
+  }
+
+  /* Loading Spinner */
+  .spinner { display: none; text-align: center; padding: 16px; color: var(--muted); font-size: 13px; }
+  .spinner.show { display: block; }
+  .spin { display: inline-block; animation: spin 1s linear infinite; font-size: 22px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Grid Layout */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  /* Charts */
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 16px;
+  }
+  .chart-card canvas { max-height: 200px; }
+
+  /* Recent Records */
+  .records-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .record-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .record-item:last-child { border-bottom: none; }
+  .record-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .record-emoji {
+    width: 38px;
+    height: 38px;
+    background: var(--surface);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+  .record-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  .record-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .record-amount { text-align: right; flex-shrink: 0; }
+  .record-twd { font-weight: 700; font-size: 14px; color: var(--accent); }
+  .record-orig { font-size: 11px; color: var(--muted); }
+
+  /* Filter Bar */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+  }
+  .btn-refresh {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--card);
+    border: 1px solid var(--success);
+    border-radius: 12px;
+    padding: 12px 20px;
+    color: var(--text);
+    font-size: 14px;
+    z-index: 999;
+    opacity: 0;
+    transition: all 0.3s;
+    white-space: nowrap;
+    max-width: calc(100vw - 32px);
+    text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.error { border-color: var(--accent2); }
+
+  /* Header user info */
+  .header-user { display: flex; align-items: center; gap: 8px; }
+  .header-user img { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); }
+  .header-user .user-name { font-size: 12px; color: var(--muted); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-logout { font-size: 12px; color: var(--muted); text-decoration: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; }
+
+  @media (max-width: 480px) {
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+    .stats-bar .stat-card:last-child { grid-column: 1 / -1; }
+    .stat-value { font-size: 18px; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    .record-name { max-width: 120px; }
+    .main { padding: 12px 10px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">✈️ <span>旅遊</span>記帳</div>
+  <div class="header-user">
+    {% if user %}
+    {% if user.picture %}<img src="{{ user.picture }}" alt="">{% endif %}
+    <span class="user-name">{{ user.name }}</span>
+    <a href="/logout" class="btn-logout">登出</a>
+    {% endif %}
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-label">總花費（台幣）</div>
+      <div class="stat-value purple" id="statTotal">NT$ {{ "{:,}".format(stats.total_twd|int) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">今日花費</div>
+      <div class="stat-value green" id="statToday">NT$ {{ "{:,}".format(stats.today_twd|int) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">總筆數</div>
+      <div class="stat-value orange" id="statCount">{{ stats.count }} 筆</div>
+    </div>
+  </div>
+
+  <!-- Entry Mode Tabs -->
+  <div class="entry-tabs">
+    <button class="entry-tab active" id="tabScan" onclick="switchEntry('scan')">📷 掃描收據</button>
+    <button class="entry-tab" id="tabManual" onclick="switchEntry('manual')">✏️ 手動輸入</button>
+  </div>
+
+  <!-- Upload Section -->
+  <div class="upload-section">
+
+    <!-- 旅程選擇（共用） -->
+    <div class="trip-row">
+      <label>旅程</label>
+      <input class="trip-input" type="text" id="tripInput" placeholder="例如：日本大阪 2026"
+             value="{{ trips[0] if trips else '' }}">
+      {% if trips %}
+      <select class="trip-select" id="tripSelect" onchange="document.getElementById('tripInput').value=this.value">
+        <option value="">選擇既有旅程</option>
+        {% for trip in trips %}
+        <option value="{{ trip }}">{{ trip }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+    </div>
+
+    <!-- 掃描模式 -->
+    <div id="scanMode">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
+        <div class="drop-icon">📸</div>
+        <div class="drop-text">
+          <strong>點擊上傳</strong>或拖曳收據圖片<br>
+          手機可直接拍照・支援 JPG、PNG、WEBP
+        </div>
+      </div>
+
+      <div class="preview-area" id="previewArea">
+        <img id="previewImg" src="" alt="預覽">
+        <button class="btn-upload" id="btnUpload" onclick="uploadReceipt()">
+          🤖 AI 辨識並記帳
+        </button>
+      </div>
+
+      <div class="spinner" id="spinner">
+        <div class="spin">⏳</div>
+        <div style="margin-top:6px">AI 辨識中，約 5–10 秒...</div>
+      </div>
+    </div>
+
+    <!-- 手動輸入模式 -->
+    <div id="manualMode" style="display:none">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>店名 / 消費地點</label>
+          <input class="form-control" type="text" id="mStore" placeholder="例如：全家便利商店">
+        </div>
+        <div class="form-group">
+          <label>日期</label>
+          <input class="form-control" type="date" id="mDate">
+        </div>
+        <div class="form-group">
+          <label>金額</label>
+          <div class="amount-row">
+            <input class="form-control" type="number" id="mAmount" placeholder="0" min="0" step="any">
+            <select class="form-control" id="mCurrency">
+              <option value="TWD">TWD</option>
+              <option value="JPY">JPY</option>
+              <option value="USD">USD</option>
+              <option value="KRW">KRW</option>
+              <option value="THB">THB</option>
+              <option value="EUR">EUR</option>
+              <option value="HKD">HKD</option>
+              <option value="SGD">SGD</option>
+              <option value="GBP">GBP</option>
+              <option value="VND">VND</option>
+              <option value="AUD">AUD</option>
+              <option value="CNY">CNY</option>
+              <option value="MYR">MYR</option>
+              <option value="PHP">PHP</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>類別</label>
+          <select class="form-control" id="mCategory">
+            <option value="餐廳">🍜 餐廳</option>
+            <option value="超市">🛒 超市</option>
+            <option value="藥妝">💊 藥妝</option>
+            <option value="購物">🛍️ 購物</option>
+            <option value="交通">🚃 交通</option>
+            <option value="住宿">🏨 住宿</option>
+            <option value="景點">🎡 景點</option>
+            <option value="其他" selected>📌 其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>支付方式</label>
+          <select class="form-control" id="mPayment">
+            <option value="現金">現金</option>
+            <option value="信用卡">信用卡</option>
+            <option value="IC卡">IC卡</option>
+            <option value="行動支付">行動支付</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>地區（選填）</label>
+          <input class="form-control" type="text" id="mRegion" placeholder="例如：大阪">
+        </div>
+        <div class="form-group full">
+          <label>品項 / 備註（選填）</label>
+          <input class="form-control" type="text" id="mItems" placeholder="例如：拉麵、炸雞、啤酒">
+        </div>
+      </div>
+      <button class="btn-upload" onclick="submitManual()">💾 記帳</button>
+      <div class="spinner" id="spinnerManual">
+        <div class="spin">⏳</div>
+        <div style="margin-top:6px">儲存中...</div>
+      </div>
+    </div>
+
+    <!-- 辨識結果 / 新增成功卡片（共用） -->
+    <div class="result-card" id="resultCard">
+      <div class="result-header">
+        <div style="font-size:22px" id="resultEmoji">🍜</div>
+        <div>
+          <div class="result-store" id="resultStore"></div>
+          <div style="font-size:12px;color:var(--muted)" id="resultOriginal"></div>
+        </div>
+      </div>
+      <div class="result-amount" id="resultAmount"></div>
+      <div class="result-twd" id="resultTwd"></div>
+      <div class="result-tags" id="resultTags"></div>
+      <div style="margin-top:10px">
+        <a id="resultSheetsLink" href="#" target="_blank"
+           style="font-size:12px;color:var(--accent);text-decoration:none">
+          📋 在 Google Sheets 查看 →
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <span style="font-size:12px;color:var(--muted)">篩選旅程：</span>
+    <select class="filter-select" id="filterTrip" onchange="loadStats()">
+      <option value="">全部旅程</option>
+      {% for trip in trips %}
+      <option value="{{ trip }}">{{ trip }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn-refresh" onclick="loadStats()">🔄 重新整理</button>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="section-title">📊 類別分析</div>
+      <canvas id="categoryChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="section-title">📅 每日花費</div>
+      <canvas id="dayChart"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="section-title">💳 支付方式</div>
+      <canvas id="paymentChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="section-title">🏆 TOP 10 花費</div>
+      <div id="top10List" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- Recent Records -->
+  <div class="records-section">
+    <div class="section-title">🧾 最近記帳</div>
+    <div id="recordsList"></div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const CATEGORY_EMOJI = {
+  "餐廳":"🍜","超市":"🛒","藥妝":"💊","購物":"🛍️",
+  "交通":"🚃","住宿":"🏨","景點":"🎡","其他":"📌"
+};
+const COLORS = ['#6c63ff','#ff6584','#43e97b','#f7971e','#4ecdc4','#a855f7','#06b6d4','#f59e0b'];
+
+let categoryChart, dayChart, paymentChart;
+let currentFile = null;
+
+// 設定日期預設值為今天
+document.getElementById('mDate').value = new Date().toISOString().split('T')[0];
+
+// ── 切換輸入模式 ──────────────────────────────
+function switchEntry(mode) {
+  const isScan = mode === 'scan';
+  document.getElementById('tabScan').classList.toggle('active', isScan);
+  document.getElementById('tabManual').classList.toggle('active', !isScan);
+  document.getElementById('scanMode').style.display = isScan ? 'block' : 'none';
+  document.getElementById('manualMode').style.display = isScan ? 'none' : 'block';
+  document.getElementById('resultCard').classList.remove('show');
+}
+
+// ── 檔案選擇 ──────────────────────────────
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) showPreview(e.target.files[0]);
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) showPreview(e.dataTransfer.files[0]);
+});
+
+function showPreview(file) {
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('previewArea').style.display = 'block';
+    document.getElementById('resultCard').classList.remove('show');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── AI 掃描上傳 ──────────────────────────────
+async function uploadReceipt() {
+  if (!currentFile) return;
+  const tripName = document.getElementById('tripInput').value.trim() || '我的旅遊';
+  const btn = document.getElementById('btnUpload');
+  const spinner = document.getElementById('spinner');
+  const resultCard = document.getElementById('resultCard');
+
+  btn.disabled = true;
+  spinner.classList.add('show');
+  resultCard.classList.remove('show');
+
+  const formData = new FormData();
+  formData.append('receipt', currentFile);
+  formData.append('trip_name', tripName);
+
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok || data.error) { showToast('❌ ' + (data.error || '上傳失敗'), true); return; }
+    showResult(data);
+    showToast('✅ 記帳成功！已同步至 Google Sheets');
+    setTimeout(loadStats, 1000);
+  } catch (err) {
+    showToast('❌ 網路錯誤：' + err.message, true);
+  } finally {
+    btn.disabled = false;
+    spinner.classList.remove('show');
+    currentFile = null;
+    fileInput.value = '';
+    document.getElementById('previewArea').style.display = 'none';
+  }
+}
+
+// ── 手動輸入送出 ──────────────────────────────
+async function submitManual() {
+  const store = document.getElementById('mStore').value.trim();
+  const amount = document.getElementById('mAmount').value;
+
+  if (!store) { showToast('❌ 請填入店名', true); return; }
+  if (!amount || parseFloat(amount) <= 0) { showToast('❌ 請填入金額', true); return; }
+
+  const tripName = document.getElementById('tripInput').value.trim() || '我的旅遊';
+  const btn = document.querySelector('#manualMode .btn-upload');
+  const spinner = document.getElementById('spinnerManual');
+
+  btn.disabled = true;
+  spinner.classList.add('show');
+
+  const payload = {
+    trip_name: tripName,
+    store_name: store,
+    amount: parseFloat(amount),
+    currency: document.getElementById('mCurrency').value,
+    category: document.getElementById('mCategory').value,
+    payment_method: document.getElementById('mPayment').value,
+    date: document.getElementById('mDate').value,
+    region: document.getElementById('mRegion').value.trim(),
+    items: document.getElementById('mItems').value.trim(),
+  };
+
+  try {
+    const res = await fetch('/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) { showToast('❌ ' + (data.error || '新增失敗'), true); return; }
+    showResult(data);
+    showToast('✅ 記帳成功！');
+    // 清空表單
+    document.getElementById('mStore').value = '';
+    document.getElementById('mAmount').value = '';
+    document.getElementById('mItems').value = '';
+    document.getElementById('mRegion').value = '';
+    document.getElementById('mDate').value = new Date().toISOString().split('T')[0];
+    setTimeout(loadStats, 1000);
+  } catch (err) {
+    showToast('❌ 網路錯誤：' + err.message, true);
+  } finally {
+    btn.disabled = false;
+    spinner.classList.remove('show');
+  }
+}
+
+// ── 顯示記帳結果卡片 ──────────────────────────
+function showResult(data) {
+  const resultCard = document.getElementById('resultCard');
+  const emoji = CATEGORY_EMOJI[data.category] || '📌';
+  document.getElementById('resultEmoji').textContent = emoji;
+  document.getElementById('resultStore').textContent = data.store_name || '未知店家';
+  document.getElementById('resultOriginal').textContent = data.store_name_original || '';
+  document.getElementById('resultAmount').textContent =
+    `${data.currency} ${Number(data.amount).toLocaleString()}`;
+  document.getElementById('resultTwd').textContent =
+    `≈ NT$ ${Number(data.twd_amount).toLocaleString()} 台幣`;
+  document.getElementById('resultSheetsLink').href = data.sheets_url || '#';
+
+  const tags = document.getElementById('resultTags');
+  tags.innerHTML = [
+    `<span class="tag">${data.category}</span>`,
+    data.payment_method ? `<span class="tag">${data.payment_method}</span>` : '',
+    data.region ? `<span class="tag">${data.region}</span>` : '',
+    data.date ? `<span class="tag green">${data.date}</span>` : '',
+  ].join('');
+
+  resultCard.classList.add('show');
+}
+
+// ── 載入統計 ──────────────────────────────
+async function loadStats() {
+  const trip = document.getElementById('filterTrip').value;
+  try {
+    const res = await fetch('/api/stats?trip=' + encodeURIComponent(trip));
+    const data = await res.json();
+    if (data.error) return;
+    renderStats(data);
+  } catch(e) { console.error(e); }
+}
+
+function renderStats(data) {
+  document.getElementById('statTotal').textContent = 'NT$ ' + (data.total_twd || 0).toLocaleString();
+  document.getElementById('statToday').textContent = 'NT$ ' + (data.today_twd || 0).toLocaleString();
+  document.getElementById('statCount').textContent = (data.count || 0) + ' 筆';
+
+  renderCategoryChart(data.by_category || {});
+  renderDayChart(data.by_day || {});
+  renderPaymentChart(data.by_payment || {});
+  renderTop10(data.top10 || []);
+  renderRecords(data.records || []);
+}
+
+function renderCategoryChart(byCategory) {
+  const labels = Object.keys(byCategory).map(k => (CATEGORY_EMOJI[k] || '') + ' ' + k);
+  const values = Object.values(byCategory);
+  if (categoryChart) categoryChart.destroy();
+  categoryChart = new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: COLORS, borderWidth: 0 }] },
+    options: {
+      plugins: { legend: { position: 'right', labels: { color: '#e8eaf0', font: { size: 10 } } } },
+      cutout: '60%',
+    }
+  });
+}
+
+function renderDayChart(byDay) {
+  const labels = Object.keys(byDay).map(d => d.slice(5));
+  const values = Object.values(byDay);
+  if (dayChart) dayChart.destroy();
+  dayChart = new Chart(document.getElementById('dayChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: 'rgba(108, 99, 255, 0.7)',
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#7b8299', font: { size: 10 } }, grid: { color: '#2a2d40' } },
+        y: { ticks: { color: '#7b8299', font: { size: 10 } }, grid: { color: '#2a2d40' } },
+      }
+    }
+  });
+}
+
+function renderPaymentChart(byPayment) {
+  const labels = Object.keys(byPayment);
+  const values = Object.values(byPayment);
+  if (paymentChart) paymentChart.destroy();
+  paymentChart = new Chart(document.getElementById('paymentChart'), {
+    type: 'pie',
+    data: { labels, datasets: [{ data: values, backgroundColor: COLORS.slice(2), borderWidth: 0 }] },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { color: '#e8eaf0', font: { size: 10 } } } },
+    }
+  });
+}
+
+function renderTop10(top10) {
+  const el = document.getElementById('top10List');
+  if (!top10.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px">尚無資料</div>'; return; }
+  el.innerHTML = top10.map((r, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;color:var(--muted);width:14px">${i+1}</span>
+        <span style="font-size:12px">${r.store_name || '未知'}</span>
+      </div>
+      <span style="font-size:12px;font-weight:700;color:var(--accent)">NT$ ${(r.twd_amount||0).toLocaleString()}</span>
+    </div>
+  `).join('');
+}
+
+function renderRecords(records) {
+  const el = document.getElementById('recordsList');
+  if (!records.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">尚無記帳資料</div>'; return; }
+  el.innerHTML = records.map(r => `
+    <div class="record-item">
+      <div class="record-left">
+        <div class="record-emoji">${CATEGORY_EMOJI[r.category] || '📌'}</div>
+        <div>
+          <div class="record-name">${r.store_name || '未知店家'}</div>
+          <div class="record-meta">${r.date || ''} ${r.region ? '· ' + r.region : ''} ${r.trip ? '· ' + r.trip : ''}</div>
+        </div>
+      </div>
+      <div class="record-amount">
+        <div class="record-twd">NT$ ${(r.twd_amount||0).toLocaleString()}</div>
+        <div class="record-orig">${r.currency} ${(r.amount||0).toLocaleString()}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Toast ──────────────────────────────────
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 3500);
+}
+
+loadStats();
+</script>
+</body>
+</html>
