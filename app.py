@@ -8,6 +8,7 @@ import os
 import json
 import base64
 import hashlib
+import time
 from datetime import datetime, date
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
@@ -23,7 +24,7 @@ app.secret_key = os.getenv("SECRET_KEY", os.urandom(24).hex())
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini = genai.GenerativeModel("gemini-2.0-flash")
+gemini = genai.GenerativeModel("gemini-1.5-flash")
 
 # Google Sheets 設定
 SCOPES = [
@@ -170,7 +171,7 @@ def encode_image(file_bytes):
     return base64.standard_b64encode(file_bytes).decode("utf-8")
 
 
-def parse_receipt(image_data: str, media_type: str) -> dict:
+def parse_receipt(image_data: str, media_type: str, retries: int = 3) -> dict:
     today = date.today().strftime("%Y-%m-%d")
     prompt = f"""你是專業旅遊記帳助手。請分析這張收據或發票圖片，提取資訊並以 JSON 格式回傳。
 
@@ -191,20 +192,34 @@ def parse_receipt(image_data: str, media_type: str) -> dict:
 }}"""
 
     image_part = {"mime_type": media_type, "data": base64.b64decode(image_data)}
-    response = gemini.generate_content([prompt, image_part])
-    result_text = response.text.strip()
 
-    if result_text.startswith("```"):
-        parts = result_text.split("```")
-        for part in parts:
-            if part.startswith("json"):
-                result_text = part[4:].strip()
-                break
-            elif "{" in part:
-                result_text = part.strip()
-                break
+    last_error = None
+    for attempt in range(retries):
+        try:
+            response = gemini.generate_content([prompt, image_part])
+            result_text = response.text.strip()
 
-    return json.loads(result_text)
+            if result_text.startswith("```"):
+                parts = result_text.split("```")
+                for part in parts:
+                    if part.startswith("json"):
+                        result_text = part[4:].strip()
+                        break
+                    elif "{" in part:
+                        result_text = part.strip()
+                        break
+
+            return json.loads(result_text)
+        except Exception as e:
+            last_error = e
+            err_str = str(e)
+            if "429" in err_str or "quota" in err_str.lower() or "rate" in err_str.lower():
+                wait = 10 * (attempt + 1)
+                time.sleep(wait)
+            else:
+                raise
+
+    raise last_error
 
 
 def to_twd(amount: float, currency: str) -> int:
